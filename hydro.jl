@@ -5,6 +5,7 @@ using Gurobi
 
 include("my_lib.jl")
 
+#################################### Small Hydro Case Study: Non Linear modeling of gravity
 
 #Data------------------------------------------>
 #Generators
@@ -58,16 +59,22 @@ p(q,v) = 9.81*q*v#/a/b*eff
 q_range = w_tur_m:1:w_tur_M
 v_range = w_lev_m:1:w_lev_M
 for t in Time
-	myPiecewiseLinearOpt(model, w_tur[t] , w_lev[t], g_gen_h[t], v_range, q_range, p, "ZZB", string(t))
+	myPiecewiseLinearOpt(model, w_tur[t] , w_lev[t], g_gen_h[t], v_range, q_range, p, "ZZI", string(t))
 	#@constraint(model, g_gen_h[t] == 9.82*w_tur[t])
 end
 
-set_optimizer_attribute(model, "MIPGap", 0.1)
+try
+	rm("my_log_file.txt")
+catch e
+	println("Problem cleaning Gurobi Logs")
+end
+set_optimizer_attribute(model, "LogFile", "my_log_file.txt")
+set_optimizer_attribute(model, "MIPGap", 0.01)
 println("Running optimization process:")
+t = DateTime(Dates.now())
 optimize!(model)
 println("    Execution status: ",termination_status(model))
-
-
+println("Soving total time: ",DateTime(Dates.now())-t)
 
 Gen = Dict()
 Gen[1] = zeros(T_num)
@@ -97,12 +104,12 @@ if termination_status(model) == OPTIMAL
     water_tur   = scatter(;x=Time, y=Turbined,mode="lines+markers",name="Turbined water")
     water_spill = scatter(;x=Time, y=Spilled,mode="lines+markers" ,name="Spilled water")
 
-    price       = scatter(;x=Time, y=STMP,mode="lines+markers",name="STMP")
+    #price       = scatter(;x=Time, y=STMP,mode="lines+markers",name="STMP")
 
     p3 = [plot([g1_power,g2_power,demand],       Layout(title="Generated Power & Demand", yaxis_title="MW") ); 
           plot([water_lev],                      Layout(title="Reservoir", yaxis_title="hm3") ); 
           plot([water_spill,water_tur,water_inf],Layout(title="Water Inflows & Outflows", yaxis_title="hm3/h") ); 
-          plot([price],                          Layout(title="Electrical Price", yaxis_title="€/MW", xaxis_title="hour of the day") );
+          #plot([price],                          Layout(title="Electrical Price", yaxis_title="€/MW", xaxis_title="hour of the day") );
         ]
 end
 
