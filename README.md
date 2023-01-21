@@ -10,7 +10,7 @@ The goal is to apply the linearization methods proposed in Nonconvex piecewise l
 The paper is implemented by the papers authors in the Julia Lang function: PiecewiseLinearOpt
 We implemented the paper developing our own library: myPiecewiseLinearOpt 
 
-## mu_lib.jl
+## my_lib.jl
 Our implementation of the paper, contains the function myPiecewiseLinearOpt.
 
 ## understanding_library.jl
