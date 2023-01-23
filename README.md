@@ -1,7 +1,7 @@
 # NonConvexPLF_code
 
 
-This repository is part of a Research Project developed by Salvador Guerrero García and directed by Javier Garcia Gonzalez (PhD from I.C.A.I). 
+This repository is part of a Research Project developed by Salvador Guerrero García and directed by Javier García González (PhD from I.C.A.I). 
 
 ## Research Goal
 The goal is to apply the linearization methods proposed in Nonconvex piecewise linear functions: Advanced formulations and simple modeling tools, (by Joey Huchette and Juan Pablo Vielma) in modeling the non linear relationships presented in Power Storage devices such as lithium bateries.

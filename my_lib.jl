@@ -129,8 +129,8 @@ function myPiecewiseLinearOpt(model, x, y, z, x_range, y_range, f, model_type, i
 	C = C_matrix(r)
 
 
-	ø = @variable(model, [i in 1:m,j in 1:n], base_name = "teta"*id)
-	@constraint(model,[i in 1:m,j in 1:n],ø[i,j]  >= 0 )
+	ø = @variable(model, [i in I,j in J], base_name = "teta"*id)
+	@constraint(model,[i in I,j in J],ø[i,j]  >= 0 )
 
 	if model_type == "ZZI"
 		ζ_k = @variable(model, [k in 1:r], Int, base_name = "ζ_k_"*id)       
@@ -140,31 +140,31 @@ function myPiecewiseLinearOpt(model, x, y, z, x_range, y_range, f, model_type, i
 		ζ_l = @variable(model, [l in 1:s], binary = true, base_name = "ζ_l_"*id)
 	end
 	#triangle selection variables
-	z1 = @variable(model, binary = true, base_name = "z2:"*id)
-	z2 = @variable(model, binary = true, base_name = "z1_"*id)
+	z1 = @variable(model, binary = true, base_name = "z1_"*id)
+	z2 = @variable(model, binary = true, base_name = "z2_"*id)
 
 	#Binary Zig-Zag constraints
-	@constraint(model, x == sum(x_hat[i]*ø[i,j]   for i in 1:m, j in 1:n) )   #13_a1
-	@constraint(model, y == sum(y_hat[j]*ø[i,j]   for i in 1:m, j in 1:n) )   #13_a2
-	@constraint(model, z == sum(z_hat[i,j]*ø[i,j] for i in 1:m, j in 1:n) )   #13_b
-	@constraint(model, 1 == sum(ø[i,j]            for i in 1:m, j in 1:n) )   #13_c
+	@constraint(model, x == sum(x_hat[i]*ø[i,j]   for i in I, j in J) )   #13_a1
+	@constraint(model, y == sum(y_hat[j]*ø[i,j]   for i in I, j in J) )   #13_a2
+	@constraint(model, z == sum(z_hat[i,j]*ø[i,j] for i in I, j in J) )   #13_b
+	@constraint(model, 1 == sum(ø[i,j]            for i in I, j in J) )   #13_c
 
 	if model_type == "ZZI"
 
 		#ZZI
-		@constraint(model,[k in 1:r], sum( C[r][ (i == 1 ? 1   : i-1 ) ,k]*sum(ø[i,j] for j in 1:n) for i in 1:m) <= ζ_k[k])      #17_a
-		@constraint(model,[k in 1:r], sum( C[r][ (i == m ? m-1 : i   ) ,k]*sum(ø[i,j] for j in 1:n) for i in 1:m) >= ζ_k[k])      #17_a
+		@constraint(model,[k in 1:r], sum( C[r][ (i == 1 ? 1   : i-1 ) ,k]*sum(ø[i,j] for j in J) for i in I) <= ζ_k[k])      #17_a
+		@constraint(model,[k in 1:r], sum( C[r][ (i == m ? m-1 : i   ) ,k]*sum(ø[i,j] for j in J) for i in I) >= ζ_k[k])      #17_a
 
-		@constraint(model,[l in 1:s], sum( C[s][ (j == 1 ? 1   : j-1 ) ,l]*sum(ø[i,j] for i in 1:m) for j in 1:n) <= ζ_l[l])      #17_b
-		@constraint(model,[l in 1:s], sum( C[s][ (j == n ? n-1 : j   ) ,l]*sum(ø[i,j] for i in 1:m) for j in 1:n) >= ζ_l[l])      #17_b
-	else
+		@constraint(model,[l in 1:s], sum( C[s][ (j == 1 ? 1   : j-1 ) ,l]*sum(ø[i,j] for i in I) for j in J) <= ζ_l[l])      #17_b
+		@constraint(model,[l in 1:s], sum( C[s][ (j == n ? n-1 : j   ) ,l]*sum(ø[i,j] for i in I) for j in J) >= ζ_l[l])      #17_b
+	else #if model_type == "ZZB"
 
 		# ZZB
-		@constraint(model,[k in 1:r], sum( C[r][ (i == 1 ? 1   : i-1 ) ,k]*sum(ø[i,j] for j in 1:n) for i in 1:m) <= ζ_k[k] + sum(ζ_k[l]*2^(l-k-1) for l in (k+1):r) )      #13_d
-		@constraint(model,[k in 1:r], sum( C[r][ (i == m ? m-1 : i   ) ,k]*sum(ø[i,j] for j in 1:n) for i in 1:m) >= ζ_k[k] + sum(ζ_k[l]*2^(l-k-1) for l in (k+1):r) )      #13_d
+		@constraint(model,[k in 1:r], sum( C[r][ (i == 1 ? 1   : i-1 ) ,k]*sum(ø[i,j] for j in J) for i in I) <= ζ_k[k] + sum(ζ_k[l]*2^(l-k-1) for l in (k+1):r) )      #13_d
+		@constraint(model,[k in 1:r], sum( C[r][ (i == m ? m-1 : i   ) ,k]*sum(ø[i,j] for j in J) for i in I) >= ζ_k[k] + sum(ζ_k[l]*2^(l-k-1) for l in (k+1):r) )      #13_d
 
-		@constraint(model,[l in 1:s], sum( C[s][ (j == 1 ? 1   : j-1 ) ,l]*sum(ø[i,j] for i in 1:m) for j in 1:n) <= ζ_l[l] + sum(ζ_l[ll]*2^(ll-l-1) for ll in (l+1):r))      #13_e
-		@constraint(model,[l in 1:s], sum( C[s][ (j == n ? n-1 : j   ) ,l]*sum(ø[i,j] for i in 1:m) for j in 1:n) >= ζ_l[l] + sum(ζ_l[ll]*2^(ll-l-1) for ll in (l+1):r))      #13_e
+		@constraint(model,[l in 1:s], sum( C[s][ (j == 1 ? 1   : j-1 ) ,l]*sum(ø[i,j] for i in I) for j in J) <= ζ_l[l] + sum(ζ_l[ll]*2^(ll-l-1) for ll in (l+1):r))      #13_e
+		@constraint(model,[l in 1:s], sum( C[s][ (j == n ? n-1 : j   ) ,l]*sum(ø[i,j] for i in I) for j in J) >= ζ_l[l] + sum(ζ_l[ll]*2^(ll-l-1) for ll in (l+1):r))      #13_e
 	
 	end
 

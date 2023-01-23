@@ -185,3 +185,40 @@ surface(x_range,y_range,f)
 surface(x_range,y_range,g,alpha=0.5)
 scatter!(sol[1],sol[2],sol[3],label="min & max")
  
+
+############################################  PiecewiseLinearOpt: 2 non linear functions ############################################
+
+f(x,y) = 3*(1-x)^2*exp(-(x^2) - (y+1)^2)  - 10*(x/5 - x^3 - y^5)*exp(-x^2-y^2)  - 1/3*exp(-(x+1)^2 - y^2)
+f(x,y) = x*y
+g(x,y) = x*x + y
+
+x_range = -4:1:4
+y_range = -4:1:4
+
+model = Model()
+set_optimizer(model, Gurobi.Optimizer)
+@variable(model, x)
+@variable(model, y)
+@variable(model, z)
+@variable(model, x2)
+@variable(model, y2)
+@variable(model, z2)
+
+z  = piecewiselinear(model, x, y, x_range, y_range, (u,v) -> f(u,v))
+z2 = piecewiselinear(model, x2, y2, x_range, y_range, (u,v) -> g(u,v))
+
+@objective(model, Max, z + z2)
+
+#Solve 
+set_optimizer_attribute(model, "MIPGap", 0.01)
+println("Running optimization process:")
+optimize!(model)
+println("    Execution status: ",termination_status(model))
+
+println("[" ,JuMP.value(x),";",JuMP.value(y),";",JuMP.value(z),"]")
+println("[" ,JuMP.value(x2),";",JuMP.value(y2),";",JuMP.value(z2),"]")
+
+
+surface(x_range,y_range,f,alpha=1)
+surface!(x_range,y_range,g,alpha=0.5)
+scatter!([JuMP.value(x),JuMP.value(x2)],[JuMP.value(y),JuMP.value(y2)],[JuMP.value(z),JuMP.value(z2)],label="min & max")

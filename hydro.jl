@@ -1,11 +1,13 @@
 using PlotlyJS
 using JuMP
 using Gurobi
-
+using PiecewiseLinearOpt
+using Dates
 
 include("my_lib.jl")
 
 #################################### Small Hydro Case Study: Non Linear modeling of gravity
+lib = 0#"my_lib"
 
 #Data------------------------------------------>
 #Generators
@@ -34,34 +36,35 @@ b = 10
 # efficiency
 eff = 0.6    
 
-model = Model()
-set_optimizer(model, Gurobi.Optimizer)
-@variable(model, g_gen[t in Time]   >= 0)
-@variable(model, g_gen_h[t in Time] >= 0)
-@variable(model, w_tur[t in Time]   >= 0)
-@variable(model, w_lev[t in 0:T_num]>= 0)
-@variable(model, w_spi[t in Time]   >= 0)
+model = Model(Gurobi.Optimizer)
+@variables(model, begin
+    L_lim  <= g_gen[Time] <= U_lim
+    w_tur[Time] >= 0
+    w_lev[vcat(0, Time)] >= 0
+    w_spi[Time] >= 0
+end)
+fix(w_lev[0],   w_lev_0; force = true)
+fix(w_lev[end], w_lev_f; force = true)
 
-@objective(model, Min, sum(g_gen[t]*Opex for t in Time) )
-
-@constraint(model,Demand[t in Time], g_gen_h[t] + g_gen[t] == dem[t] ) 
-
-@constraint(model, [t in Time], L_lim <= g_gen[t] <= U_lim)
-@constraint(model, [t in Time], L_lim <= g_gen_h[t] <= U_lim)
-
-@constraint(model, Reservoir[t in Time],  w_lev[t] == w_lev[t-1] + w_apo -(w_tur[t] + w_spi[t]) )
-
-@constraint(model, w_lev[0] == w_lev_0 )
-@constraint(model, w_lev[T_num] == w_lev_f )
-
-p(q,v) = 9.81*q*v#/a/b*eff
-
-q_range = w_tur_m:1:w_tur_M
-v_range = w_lev_m:1:w_lev_M
-for t in Time
-	myPiecewiseLinearOpt(model, w_tur[t] , w_lev[t], g_gen_h[t], v_range, q_range, p, "ZZI", string(t))
-	#@constraint(model, g_gen_h[t] == 9.82*w_tur[t])
+if lib != "my_lib"
+    g_gen_h = [
+        piecewiselinear(model, w_tur[t] , w_lev[t], v_range, q_range, p)
+        for t in Time
+    ]
+else
+    @variable(g_gen[Time])
+    for t in Time
+	    myPiecewiseLinearOpt(model, w_tur[t] , w_lev[t], g_gen_h[t], v_range, q_range, p, "ZZI", string(t))
+    end
 end
+set_lower_bound.(g_gen_h, L_lim)
+set_upper_bound.(g_gen_h, U_lim)
+@constraints(model, begin
+    [t in Time], g_gen_h[t] + g_gen[t] == dem[t]
+    [t in Time],  w_lev[t] == w_lev[t-1] + w_apo - (w_tur[t] + w_spi[t])
+end) 
+
+@objective(model, Min, Opex * sum(g_gen[t] for t in Time))
 
 try
 	rm("my_log_file.txt")
