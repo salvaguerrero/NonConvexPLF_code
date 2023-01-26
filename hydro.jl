@@ -7,7 +7,7 @@ using Dates
 include("my_lib.jl")
 
 #################################### Small Hydro Case Study: Non Linear modeling of gravity
-lib = 0#"my_lib"
+lib = "my_lib"
 
 #Data------------------------------------------>
 #Generators
@@ -46,15 +46,19 @@ end)
 fix(w_lev[0],   w_lev_0; force = true)
 fix(w_lev[end], w_lev_f; force = true)
 
+p(q,v) = 9.81*q*v#/a/b*eff
+
+q_range = w_tur_m:1:w_tur_M #0:128
+v_range = w_lev_m:1:w_lev_M #0:128
 if lib != "my_lib"
     g_gen_h = [
-        piecewiselinear(model, w_tur[t] , w_lev[t], v_range, q_range, p)
+        piecewiselinear(model, w_tur[t] , w_lev[t], v_range, q_range, p,method=:ZigZag)#ZigZagInteger
         for t in Time
     ]
 else
-    @variable(g_gen[Time])
+    @variable(model,g_gen_h[Time])
     for t in Time
-	    myPiecewiseLinearOpt(model, w_tur[t] , w_lev[t], g_gen_h[t], v_range, q_range, p, "ZZI", string(t))
+	    myPiecewiseLinearOpt(model, w_tur[t] , w_lev[t], g_gen_h[t], v_range, q_range, p, "ZZB", string(t))
     end
 end
 set_lower_bound.(g_gen_h, L_lim)
@@ -87,6 +91,9 @@ Turbined = zeros(T_num)
 STMP = zeros(T_num)
 Spilled = zeros(T_num)
 Inflows = w_apo*ones(T_num)
+
+Lin_e = zeros(T_num)
+
 if termination_status(model) == OPTIMAL
     for t in Time
         Level[t]    = round(JuMP.value(w_lev[t])   , digits = 2)
@@ -95,8 +102,11 @@ if termination_status(model) == OPTIMAL
         Gen[1][t]   = round(JuMP.value(g_gen_h[t]) , digits = 2)
         Gen[2][t]   = round(JuMP.value(g_gen[t]) , digits = 2)
         STMP[t]     = 0#round(dual(Demand[t])        , digits = 2)
+        Lin_e[t]    = abs(9.81*Turbined[t]*Level[t] - Gen[1][t])
     end
-
+    println( "max linearization absolute erro: ", maximum(Lin_e))
+   
+    # Model Plotting
     g1_power = scatter(;x=Time, y=Gen[1], mode="lines+markers",name="Hydro",stackgroup="one")
     g2_power = scatter(;x=Time, y=Gen[2], mode="lines+markers",name="Gas"  ,stackgroup="one")
     demand   = scatter(;x=Time, y=dem,    mode="markers"      ,name="Demand")
